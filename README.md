@@ -51,10 +51,10 @@ mvn -version
 
 Sigue los pasos a continuación para configurar el entorno de desarrollo:
 
-1. Clona este repositorio en tu máquina local:
+1. Clona este repositorio en tu máquina local, probarlo en power shell o en el ide:
 
 ```bash
-git clone <(https://github.com/YeltzynS/AREP_TALLER01.git)>
+git clone <https://github.com/YeltzynS/AREP_TALLER01.git>
 ```
 
 2. Navega al directorio del proyecto:
