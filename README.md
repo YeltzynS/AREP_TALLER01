@@ -60,21 +60,19 @@ git clone <(https://github.com/YeltzynS/AREP_TALLER01.git)>
 2. Navega al directorio del proyecto:
 
 ```bash
-cd HttpServer\HttpServer
+cd AREP_TALLER01-main\AREP_TALLER01
 ```
 
-3. Compila el proyecto y descarga las dependencias necesarias con Maven:
-
-```bash
-mvn clean install
-```
-
-4. Ejecuta el servidor HTTP:
+3. Ejecuta el servidor HTTP:
 
 ```bash
 mvn exec:java 
 ```
+4. En otra terminal ejecuta:
 
+```bash
+mvn test 
+```
 5. Accede al servidor desde tu navegador 
 ```bash
 http://localhost:8080
