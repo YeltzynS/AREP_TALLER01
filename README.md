@@ -60,7 +60,7 @@ git clone <https://github.com/YeltzynS/AREP_TALLER01.git>
 2. Navega al directorio del proyecto:
 
 ```bash
-cd AREP_TALLER01-main\AREP_TALLER01
+cd AREP_TALLER01
 ```
 
 3. Ejecuta el servidor HTTP:
