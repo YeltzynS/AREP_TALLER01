@@ -1,23 +1,28 @@
-document.getElementById("getWorkout").addEventListener("click", () => {
-    let type = document.getElementById("type").value;
-    let level = document.getElementById("level").value;
- 
-    fetch(`/api/workout?type=${type}&level=${level}`)
+document.getElementById("getWorkout").addEventListener("click", function() {
+    const type = document.getElementById("type").value;
+    const level = document.getElementById("level").value;
+
+    const url = `/api/workout?type=${type}&level=${level}`;
+
+    fetch(url)
         .then(response => response.json())
         .then(data => {
-            let list = document.getElementById("workoutList");
-            list.innerHTML = ""; // Limpiar lista anterior
-            
-            if (data.workout.length === 0) {
-                list.innerHTML = "<li>No se encontraron ejercicios</li>";
-                return;
-            }
+            const workoutList = document.getElementById("workoutList");
+            workoutList.innerHTML = "";
 
-            data.workout.forEach(exercise => {
-                let li = document.createElement("li");
-                li.textContent = exercise;
-                list.appendChild(li);
-            });
+            if (data.workout && data.workout.length > 0) {
+                data.workout.forEach(item => {
+                    const li = document.createElement("li");
+                    li.textContent = item;
+                    workoutList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement("li");
+                li.textContent = "No se encontró una rutina para estos parámetros.";
+                workoutList.appendChild(li);
+            }
         })
-        .catch(error => console.error("Error:", error));
+        .catch(error => {
+            console.error("Error al obtener la rutina:", error);
+        });
 });
