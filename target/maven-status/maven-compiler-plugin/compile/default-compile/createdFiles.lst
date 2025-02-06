@@ -1,4 +1,2 @@
-com\eci\arep\httpserver\Request.class
 com\eci\arep\httpserver\HttpServer.class
 com\eci\arep\httpserver\WorkoutPlanner.class
-com\eci\arep\httpserver\Response.class

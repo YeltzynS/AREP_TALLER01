@@ -3,22 +3,15 @@ package com.eci.arep.httpserver;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
-import java.util.*;
-import java.util.function.*;
+import java.util.Map;
 
 public class HttpServer {
 
-    private static final String STATIC_FOLDER = "src/main/resources/static";
-    private static final Map<String, BiFunction<Request, Response, String>> routes = new HashMap<>();
+    private static final String STATIC_FOLDER = "src/main/resources/static"; // Ajuste en la ruta de archivos estáticos
 
     public static void main(String[] args) throws IOException {
         ServerSocket serverSocket = new ServerSocket(8080);
         System.out.println("Servidor iniciado en el puerto 8080...");
-
-        // Agregar rutas de ejemplo usando lambda
-        get("/hello", (req, res) -> "Hello, world!");
-        get("/greet", (req, res) -> "Hello, " + req.getValues("name"));
-        get("/api", (req, res) -> "Hello, " + req.getValues("name"));
 
         while (true) {
             Socket clientSocket = serverSocket.accept();
@@ -26,96 +19,74 @@ public class HttpServer {
         }
     }
 
-    public static void get(String path, BiFunction<Request, Response, String> handler) {
-        routes.put(path, handler);
+    private static void handleRequest(Socket clientSocket) throws IOException {
+        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        OutputStream out = clientSocket.getOutputStream();
+        String inputLine, filePath = "";
+        boolean isFirstLine = true;
+
+        while ((inputLine = in.readLine()) != null && !inputLine.isEmpty()) {
+            if (isFirstLine) {
+                filePath = inputLine.split(" ")[1];
+                isFirstLine = false;
+            }
+            System.out.println("Received: " + inputLine);
+        }
+
+        if (filePath.startsWith("/api/workout")) {
+            handleWorkoutRequest(out, filePath);
+        } else {
+            serveStaticFile(out, filePath);
+        }
+
+        out.close();
+        in.close();
+        clientSocket.close();
     }
 
-    private static void handleRequest(Socket clientSocket) {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-             OutputStream out = clientSocket.getOutputStream()) {
-            
-            Request request = new Request(in);
-            Response response = new Response(out);
-            
-            String filePath = request.getPath();
-            
-            if (filePath.equals("/api")) {
-                response.send("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<h1>Hello " + request.getValues("name") + "</h1>");
-            } else if (filePath.startsWith("/api/workout")) {
-                handleWorkoutRequest(response, request);
-            } else {
-                serveStaticFile(response, filePath);
-            }
-        } catch (IOException e) {
-            System.err.println("Error al manejar la solicitud: " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                clientSocket.close();
-            } catch (IOException e) {
-                System.err.println("Error al cerrar la conexión: " + e.getMessage());
-            }
-        }
-    }
-    
-    private static void handleWorkoutRequest(Response response, Request request) throws IOException {
+    private static void handleWorkoutRequest(OutputStream out, String filePath) throws IOException {
         try {
-            // Obtener los parámetros de la solicitud
-            String type = request.getValues("type");
-            String level = request.getValues("level");
-            String name = request.getValues("name");  // Extraer el nombre de la consulta
-    
-            // Validar parámetros
-            if (type == null || level == null || type.isEmpty() || level.isEmpty()) {
-                response.send("HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nFaltan parametros");
-                return;
-            }
-    
-            // Validar el tipo de ejercicio
-            if (type.equals("running")) {
-                type = "cardio";
-            }
-    
-            // Obtener la rutina de ejercicios
+            String[] parts = filePath.split("\\?");
+            if (parts.length < 2) throw new IllegalArgumentException("Parámetros inválidos");
+
+            String query = parts[1];
+            Map<String, String> params = parseQuery(query);
+
+            String type = params.get("type");
+            String level = params.get("level");
+
             String[] workout = WorkoutPlanner.getWorkout(type, level);
-    
-            // Crear el JSON de respuesta
-            StringBuilder jsonResponse = new StringBuilder();
-            jsonResponse.append("{");
-            jsonResponse.append("\"name\":\"").append(name.isEmpty() ? "Stranger" : name).append("\",");  // Agregar el nombre al JSON
+
+            StringBuilder jsonResponse = new StringBuilder("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{");
             jsonResponse.append("\"workout\":[");
-    
-            // Agregar las rutinas de ejercicios al JSON
             for (int i = 0; i < workout.length; i++) {
                 jsonResponse.append("\"").append(workout[i]).append("\"");
                 if (i < workout.length - 1) {
                     jsonResponse.append(",");
                 }
             }
-    
             jsonResponse.append("]}");
-    
-            // Enviar el JSON como respuesta
-            response.sendJson(jsonResponse.toString());
-    
+
+            out.write(jsonResponse.toString().getBytes());
         } catch (Exception e) {
-            response.send("HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nError en la solicitud");
+            out.write("HTTP/1.1 400 Bad Request\r\n\r\nError en la solicitud".getBytes());
         }
     }
-    
 
-    private static void serveStaticFile(Response response, String filePath) throws IOException {
-        if (filePath.equals("/")) filePath = "/index.html";
+    private static void serveStaticFile(OutputStream out, String filePath) throws IOException {
+        if (filePath.equals("/")) filePath = "/index.html"; // Redirigir raíz al index.html
 
+        // Construir ruta correcta
         Path file = Paths.get(STATIC_FOLDER, filePath).toAbsolutePath();
         System.out.println("Buscando archivo en: " + file.toString());
 
         if (Files.exists(file) && !Files.isDirectory(file)) {
             String contentType = getContentType(filePath);
             byte[] fileContent = Files.readAllBytes(file);
-            response.sendFile(fileContent, contentType);
+            out.write(("HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\n\r\n").getBytes());
+            out.write(fileContent);
         } else {
-            response.send("HTTP/1.1 404 Not Found\r\n\r\nArchivo no encontrado.");
+            out.write("HTTP/1.1 404 Not Found\r\n\r\nArchivo no encontrado.".getBytes());
         }
     }
 
@@ -126,5 +97,17 @@ public class HttpServer {
         if (filePath.endsWith(".png")) return "image/png";
         if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) return "image/jpeg";
         return "text/plain";
+    }
+
+    private static Map<String, String> parseQuery(String query) {
+        Map<String, String> params = new java.util.HashMap<>();
+        String[] pairs = query.split("&");
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=");
+            if (keyValue.length == 2) {
+                params.put(keyValue[0], keyValue[1]);
+            }
+        }
+        return params;
     }
 }
